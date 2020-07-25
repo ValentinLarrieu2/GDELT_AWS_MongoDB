@@ -1,0 +1,188 @@
+---------------------------------------------------------------------
+----------- HOW TO INSTALL A MONGODB CLUSTER ON AWS EMR -------------
+---------------------------------------------------------------------
+
+NOTE : In this tutorial, we'll show how to install and configure a mongoDB cluster to an EMR cluster. The IP used in the configuration files are private IPs, but the public IPs or DNS names should also work. Using private IPs for the Shard replica sets and the config server allows for the machines to use the internal network and, if needs be (for security reasons and good practices), be cut out of the world. Only the mongos routers should be accessed from outside the cluster.
+WARNING : This tutorial does NOT contain any security aspect. For a production environnement this aspect MUST be implemented.
+
+
+I. INSTALL MONGO ON ALL INSTANCES :
+
+--> For ONE instance :
+
+	1. Connect the EMR using ssh
+	- $ ssh -i gdeltKeyPair.pem hadoop@ec2-################.amazonaws.com (DNS public principal)
+
+	2. Create a /etc/yum.repos.d/mongodb-org-4.0.repo file so that you can install MongoDB directly using yum:
+	- $ sudo touch /etc/yum.repos.d/mongodb-org-4.0.repo
+	- $ sudo vim sudo touch /etc/yum.repos.d/mongodb-org-4.0.repo
+	- copy-paste : 
+
+		-------------------------
+
+		[mongodb-org-4.0]
+		name=MongoDB Repository
+		baseurl=https://repo.mongodb.org/yum/amazon/2013.03/mongodb-org/4.0/x86_64/
+		gpgcheck=1
+		enabled=1
+		gpgkey=https://www.mongodb.org/static/pgp/server-4.0.asc
+
+		-------------------------
+
+	- to exit and save, type : ZZ (uppercase)
+	- $ cat /etc/yum.repos.d/mongodb-org-4.0.repo (to check the update was effectivly done)
+
+	3. Install the mongoDB packages :
+	- $ sudo yum install -y mongodb-org
+
+	4. Create a /data/db folder with all rights
+
+	- $ sudo mkdir /data
+	- $ sudo mkdir /data/db
+	- $ sudo chmod 777 /data/db
+
+		--> for more info, cf. https://docs.mongodb.com/manual/tutorial/install-mongodb-on-amazon/
+
+	rk : This will install mongo on ALL EC2 nodes in the EMR 
+
+II. CLUSTER CONFIGURATION
+
+	There are 3 types of actors that you need to set up :
+		- Config Server : One cluster (typically 3 machines) that contains metadata
+		- Shard replica sets : Several replica sets (typically 3 machines each) that contains the data. One replica set contains one shard
+		- Mongos : Routers. They're the way in and out of the cluster, they're the machines that you need to connect your application to and send your queries to. There are typically 2 of them to ensure availability
+
+	-----------------------------------------------------------------------------------------------------------
+
+	1. Config server
+		a. Connect to one of the machines chosen for the config server and launch the mongod server(3 total) 
+
+		- $ ssh -i gdeltKeyPair.pem hadoop@ec2-################.amazonaws.com (DNS public)
+		
+			--> At this point you're connected on 172.AA.AA.AA
+
+		- $ mongod --configsvr --replSet configServ --dbpath /mnt/data/db/ --bind_ip localhost,172.AA.AA.AA --fork --logpath /var/log/mongodb.log
+
+		b. Connect to the mongo shell from another terminal window (on the same machine or another from the replica set)
+
+		- $ ssh -i gdeltKeyPair.pem hadoop@ec2-################.amazonaws.com (DNS public)
+		- $ mongo --host 172.AA.AA.AA --port 27019
+
+		c. Init replica set with rs.initiate() :
+
+			--------Mongo Code--------
+
+			rs.initiate(
+			  {
+			    _id: "configServ",
+			    configsvr: true,
+			    members: [
+			      { _id : 0, host : "172.31.91.169:27019" },
+			      { _id : 1, host : "172.31.87.7:27019" },
+			      { _id : 2, host : "172.31.95.190:27019" }
+			    ]
+			  }
+			)
+
+			-------------------------
+
+		d. Check your config (in the mongo shell)
+
+		- $ rs.status()
+
+	-----------------------------------------------------------------------------------------------------------
+
+	2. Shard replica set
+
+		NOTE : As there should be several shards in your architecture, you'll need to do the following config for each shard replica set you need to set up.
+		For each shard, don't forget to set it's <ShardName> (to 'Shard1', 'Shard2'... for instance)
+
+		a. Connect to one of the machines chosen for the config server and launch the mongod server(3 total) 
+
+		- $ ssh -i gdeltKeyPair.pem hadoop@ec2-################.amazonaws.com (DNS public)
+		
+			--> At this point you're connected on 172.DD.DD.DD
+
+		- $ mongod --shardsvr --replSet shard2 --dbpath /mnt/data/db/ --bind_ip localhost,172.DD.DD.DD --fork --logpath /var/log/mongodb.log
+
+		b. Connect to the mongo shell from another terminal window (on the same machine or another from the replica set)
+
+		- $ ssh -i gdeltKeyPair.pem hadoop@ec2-################.amazonaws.com (DNS public)
+		- $ mongo --host 172.DD.DD.DD --port 27018
+
+		c. Init replica set with rs.initiate() :
+
+			--------Mongo Code--------
+
+			rs.initiate(
+			  {
+			    _id: "shard2",
+			    members: [
+			      { _id : 0, host : "172.31.95.212:27018" },
+			      { _id : 1, host : "172.31.84.175:27018" },
+			      { _id : 2, host : "172.31.81.139:27018" }
+			    
+			]  }
+			)
+
+			-------------------------
+
+		d. Check your config (in the mongo shell)
+
+		- $ rs.status()
+
+	3. Mongos routers
+
+		NOTE : As there should be several mongos in your architecture (typically 2), you'll need to do the following config for each mongos router set you need to set up.
+
+		a. Connect the the machine that will serve as a mongos router
+
+		- $ ssh -i gdeltKeyPair.pem hadoop@ec2-################.amazonaws.com (DNS public)
+		
+			--> At this point you're connected on 172.MM.MM.MM
+
+		b. Connect the mongos router to the previously configured configServer using mongos command line
+
+		- $ mongos --configdb configServ/172.31.91.169:27019,172.31.87.7:27019,172.31.95.190:27019 --bind_ip localhost,172.31.80.222 --fork --logpath /var/log/mongodb.log
+
+
+		c. Using the mongo command line, add each shard to the cluster :
+
+		- $ mongo --host 172.MM.MM.MM --port 27017
+
+		For each shard, add the host with id 0 :
+		- $ sh.addShard("shard1/172.DD.DD.DD:27018")
+		- $ ...
+		- $ sh.addShard("shardN/...:27018")
+
+		d. Check your config (in the mongo shell)
+
+		- $ rs.status()
+
+		e. You can now use this router to query your mongo cluster !
+
+------------------------------------------------------------------
+	
+	Tunnel SSH
+
+		ssh -i gdeltKeyPair.pem -N -L 8157:ec2-35-170-245-148.compute-1.amazonaws.com:27017 hadoop@ec2-35-170-245-148.compute-1.amazonaws.com
+
+
+------------------------------------------------------------------
+
+	Sharding :
+
+		use gdelt
+		sh.enableSharding('gdelt')
+
+		#db.actor.drop()
+
+		db.createCollection('actor')
+		db.c2.ensureIndex({SQLDATE: "hashed"})
+		sh.shardCollection("gdelt.actor", {"SQLDATE": "hashed"})
+
+------------------------------------------------------------------
+	
+	MongoImport
+
+		mongoimport --host localhost --port 27017 --db gdelt --collection actor --file file.json
