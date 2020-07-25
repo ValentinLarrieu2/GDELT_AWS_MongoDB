@@ -24,29 +24,29 @@ A project realised using the GDELT database. It uses an architecture built on Am
 
 
 ##### Our global architecture
-<img src="./Files/Images/globalArchi.PNG" alt="global architecture" height="400" width="550"> 
+<img src="./Files/Images/globalArchi.PNG" alt="global architecture" height="400" width="750"> 
 
 ##### MongoDB â€“Classic Architecture
-<img src="./Files/Images/mongoClassicArchi.PNG" alt="mongoDB classic architecture" height="400" width="550"> 
+<img src="./Files/Images/mongoClassicArchi.PNG" alt="mongoDB classic architecture" height="400" width="750"> 
 
 ##### Our Architecture
-<img src="./Files/Images/ourArchi.PNG" alt="our architecture" height="400" width="550"> 
+<img src="./Files/Images/ourArchi.PNG" alt="our architecture" height="400" width="750"> 
 
 ## II. Prepossessing & Modeling
 
 ##### Spark
-<img src="./Files/Images/preprocessingSpark.PNG" alt="preprocessing Spark" height="400" width="550"> 
+<img src="./Files/Images/preprocessingSpark.PNG" alt="preprocessing Spark" height="400" width="750"> 
 
 ##### Data Model
-<img src="./Files/Images/dataModel.PNG" alt="data model" height="400" width="550"> 
+<img src="./Files/Images/dataModel.PNG" alt="data model" height="400" width="750"> 
 
 ## III. Advantages and flaws
 
 ##### Architecture
-<img src="./Files/Images/archiAdvFlaws.PNG" alt="test" architecture Advantages and Flaws="400" width="550"> 
+<img src="./Files/Images/archiAdvFlaws.PNG" alt="test" architecture Advantages and Flaws="400" width="750"> 
 
 ##### Preprocessingand Data Model
-<img src="./Files/Images/modelAdvFlaws.PNG" alt="model Advantages and Flaws.PNG" height="400" width="550"> 
+<img src="./Files/Images/modelAdvFlaws.PNG" alt="model Advantages and Flaws.PNG" height="400" width="750"> 
 
 ## IV. Demonstration
 
@@ -55,5 +55,5 @@ See the ipnb files
 # Appendices
 
 ##### Data Cleaning-Exemple
-<img src="./Files/Images/cleaning.PNG" alt="cleaning" height="400" width="550"> 
+<img src="./Files/Images/cleaning.PNG" alt="cleaning" height="400" width="750"> 
 
